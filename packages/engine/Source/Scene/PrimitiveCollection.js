@@ -116,6 +116,33 @@ Object.defineProperties(PrimitiveCollection.prototype, {
       return this._primitiveRemoved;
     },
   },
+  /**
+   * Determines whether the collection has a 3d Tileset anywhere within its hierarchy of primitives.
+   * @memberof PrimitiveCollection.prototype
+   * @returns {boolean} <code>true</code> if a 3d Tileset is in the collection; <code>false</code> if it was not found in the collection.
+   * @readonly
+   */
+  has3dTileset: {
+    get: function () {
+      function checkNested(primitive) {
+        if (primitive.isCesium3DTileset && !primitive._root.hasEmptyContent) {
+          return true;
+        }
+
+        if (primitive._primitives) {
+          return primitive._primitives.some(checkNested);
+        }
+
+        if (primitive._primitiveCollection) {
+          return primitive._primitiveCollection._primitives.some(checkNested);
+        }
+
+        return false;
+      }
+
+      return this._primitives.some(checkNested);
+    },
+  },
 });
 
 /**
@@ -163,6 +190,46 @@ PrimitiveCollection.prototype.add = function (primitive, index) {
   this._primitiveAdded.raiseEvent(primitive);
 
   return primitive;
+};
+
+/**
+ * Returns a Cesium3dTileset from within a nested hierarchy of primitives.
+ *
+ *
+ * @returns {Cesium3dTileset}
+ *
+ * @example
+ * const collection = new Cesium.PrimitiveCollection()
+ * collection.add(await Cesium.Cesium3DTileset.fromUrl('someUrl'));
+ * scene.primitives.add(collection);
+ * const tileset = scene.primitives.get3dTileset();
+ *
+ */
+PrimitiveCollection.prototype.get3dTileset = function () {
+  function checkNested(primitive) {
+    if (
+      primitive.isCesium3DTileset &&
+      !primitive._root.hasEmptyContent &&
+      //TODO: add an option to turn on this condition to ignore pointclouds
+      !primitive._pointCloudShading.attenuation
+    ) {
+      return primitive;
+    }
+
+    if (primitive._primitives) {
+      return primitive._primitives.map(checkNested).filter((x) => x)[0];
+    }
+
+    if (primitive._primitiveCollection) {
+      return primitive._primitiveCollection._primitives
+        .map(checkNested)
+        .filter((x) => x)[0];
+    }
+
+    return undefined;
+  }
+
+  return this._primitives.map(checkNested).filter((x) => x)[0];
 };
 
 /**

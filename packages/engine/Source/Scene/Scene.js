@@ -3801,38 +3801,6 @@ function getGlobeHeight(scene) {
   return scene.getHeight(cartographic);
 }
 
-function getMaxPrimitiveHeight(primitive, cartographic, scene) {
-  let maxHeight = Number.NEGATIVE_INFINITY;
-
-  if (primitive instanceof PrimitiveCollection) {
-    // If it's a PrimitiveCollection, iterate through its children
-    const length = primitive.length;
-    for (let i = 0; i < length; ++i) {
-      const subPrimitive = primitive.get(i);
-      const subHeight = getMaxPrimitiveHeight(
-        subPrimitive,
-        cartographic,
-        scene,
-      );
-      if (defined(subHeight) && subHeight > maxHeight) {
-        maxHeight = subHeight;
-      }
-    }
-  } else if (
-    primitive.isCesium3DTileset &&
-    primitive.show &&
-    primitive.enableCollision
-  ) {
-    // If it's an individual primitive, check its height
-    const result = primitive.getHeight(cartographic, scene);
-    if (defined(result) && result > maxHeight) {
-      return result;
-    }
-  }
-
-  return maxHeight;
-}
-
 /**
  * Gets the height of the loaded surface at the cartographic position.
  * @param {Cartographic} cartographic The cartographic position.
@@ -3840,6 +3808,7 @@ function getMaxPrimitiveHeight(primitive, cartographic, scene) {
  * @private
  */
 Scene.prototype.getHeight = function (cartographic, heightReference) {
+  console.log("getheight");
   if (!defined(cartographic)) {
     return undefined;
   }
@@ -3859,13 +3828,33 @@ Scene.prototype.getHeight = function (cartographic, heightReference) {
   let maxHeight = Number.NEGATIVE_INFINITY;
 
   if (!ignore3dTiles) {
-    const maxPrimitiveHeight = getMaxPrimitiveHeight(
-      this.primitives,
-      cartographic,
-      this,
-    );
-    if (defined(maxPrimitiveHeight) && maxPrimitiveHeight > maxHeight) {
-      maxHeight = maxPrimitiveHeight;
+    const length = this.primitives.length;
+    for (let i = 0; i < length; ++i) {
+      let primitive = this.primitives.get(i);
+      console.log("hi greg primitive", primitive);
+      //filter out primitives without  \tilesets to display
+      if (
+        (!primitive.isCesium3DTileset &&
+          !primitive.get3dTileset().isCesium3DTileset) ||
+        !primitive.show ||
+        (primitive.isCesium3DTileset && !primitive.enableCollision)
+      ) {
+        continue;
+      }
+      //get cesium3dTilesets that are nested within primitives
+      if (
+        !primitive.isCesium3DTileset &&
+        primitive.get3dTileset().isCesium3DTileset
+      ) {
+        primitive = primitive.get3dTileset();
+
+        //primitive = primitive._primitives[0]._b3dmTileset;
+      }
+
+      const result = primitive.getHeight(cartographic, this);
+      if (defined(result) && result > maxHeight) {
+        maxHeight = result;
+      }
     }
   }
 
@@ -3960,7 +3949,15 @@ Scene.prototype.updateHeight = function (
     const length = this.primitives.length;
     for (let i = 0; i < length; ++i) {
       const primitive = this.primitives.get(i);
-      createPrimitiveEventListener(primitive);
+      console.log(primitive);
+      if (primitive.isCesium3DTileset && primitive.has3dTileset) {
+        createPrimitiveEventListener(primitive);
+      } else if (primitive.isCesium3DTileset && !primitive.has3dTileset) {
+        return;
+      } else if (primitive.get3dTileset().isCesium3DTileset) {
+        createPrimitiveEventListener(primitive.get3dTileset());
+        //createPrimitiveEventListener(primitive._primitives[0]._b3dmTileset);
+      }
     }
   }
 

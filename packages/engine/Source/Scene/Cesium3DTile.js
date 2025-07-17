@@ -569,6 +569,23 @@ Object.defineProperties(Cesium3DTile.prototype, {
   },
 
   /**
+   * sanity check,  hasEmptyContent or hasRenderableContent can replace
+   *
+   * @memberof Cesium3DTile.prototype
+   *
+   * @type {boolean}
+   * @readonly
+   */
+  is3dTile: {
+    get: function () {
+      if (this._content instanceof Empty3DTileContent) {
+        return false;
+      }
+      return true;
+    },
+  },
+
+  /**
    * Get the tile's bounding volume.
    *
    * @memberof Cesium3DTile.prototype
